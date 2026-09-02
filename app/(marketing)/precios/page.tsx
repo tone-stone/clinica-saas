@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SiteHeader } from "@/components/site-header";
+import { BackLink } from "@/components/back-link";
 import { getActivePlans } from "@/lib/queries/plans";
 
 export default async function PricingPage() {
@@ -12,6 +13,7 @@ export default async function PricingPage() {
     <main className="flex-1">
       <SiteHeader />
       <div className="mx-auto max-w-3xl px-6 py-24">
+        <BackLink className="mb-10" />
         <h1 className="text-center text-3xl font-semibold tracking-tight">Precios</h1>
         <p className="mt-3 text-center text-muted-foreground">
           Suscripción anual, sin sorpresas. Cancela cuando quieras.

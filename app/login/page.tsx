@@ -1,10 +1,14 @@
 import { LoginForm } from "@/components/login-form";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/site-header";
+import { BackLink } from "@/components/back-link";
 
 export default function RootLoginPage() {
   return (
     <main className="mx-auto flex flex-1 flex-col justify-center px-6 py-16" style={{ maxWidth: 400 }}>
+      <div className="mb-8">
+        <BackLink />
+      </div>
       <div className="flex justify-center">
         <Logo />
       </div>

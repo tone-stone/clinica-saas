@@ -1,6 +1,7 @@
 import { SignupForm } from "@/components/signup-form";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/site-header";
+import { BackLink } from "@/components/back-link";
 import { getActivePlans } from "@/lib/queries/plans";
 
 export default async function SignupPage({
@@ -12,6 +13,9 @@ export default async function SignupPage({
 
   return (
     <main className="mx-auto flex-1 px-6 py-16" style={{ maxWidth: 480 }}>
+      <div className="mb-8">
+        <BackLink />
+      </div>
       <div className="flex justify-center">
         <Logo />
       </div>
