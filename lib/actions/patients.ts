@@ -202,3 +202,24 @@ export async function invitePatientToPortal(patientId: string): Promise<{ error?
   revalidatePath(`/pacientes/${patientId}`);
   return {};
 }
+
+/** Guarda o quita la foto de perfil del paciente (ya subida a Cloudinary). */
+export async function updatePatientPhoto(input: {
+  patientId: string;
+  publicId: string | null;
+}): Promise<{ error?: string }> {
+  const tenant = await getCurrentTenant();
+  if (!tenant) return { error: "No se pudo determinar la clínica" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("patients")
+    .update({ photo_public_id: input.publicId })
+    .eq("id", input.patientId)
+    .eq("tenant_id", tenant.id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/pacientes/${input.patientId}`);
+  revalidatePath("/pacientes");
+  return {};
+}

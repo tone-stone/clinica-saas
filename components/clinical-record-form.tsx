@@ -21,7 +21,7 @@ const initialState: ClinicalRecordFormState = {};
 
 const RECORD_TYPES: { value: ClinicalRecordType; label: string }[] = [
   { value: "general", label: "General" },
-  { value: "medicina", label: "Medicina" },
+  { value: "medicina", label: "Medicina (SOAP)" },
   { value: "psicologia", label: "Psicología" },
 ];
 
@@ -42,7 +42,11 @@ export function ClinicalRecordForm({ patientId }: { patientId: string }) {
 
       <div className="space-y-2">
         <Label>Tipo</Label>
-        <Select value={recordType} onValueChange={(v) => setRecordType(v as ClinicalRecordType)}>
+        <Select
+          items={Object.fromEntries(RECORD_TYPES.map((t) => [t.value, t.label]))}
+          value={recordType}
+          onValueChange={(v) => setRecordType(v as ClinicalRecordType)}
+        >
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
@@ -64,10 +68,50 @@ export function ClinicalRecordForm({ patientId }: { patientId: string }) {
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="notes">Notas clínicas</Label>
-        <Textarea id="notes" name="notes" rows={5} />
-      </div>
+      {recordType === "medicina" && (
+        <div className="space-y-4 rounded-lg border border-dashed p-3">
+          <div className="space-y-2">
+            <Label htmlFor="subjetivo">Subjetivo</Label>
+            <Textarea id="subjetivo" name="subjetivo" rows={2} placeholder="Motivo de consulta, síntomas referidos por el paciente" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="objetivo">Objetivo</Label>
+            <Textarea id="objetivo" name="objetivo" rows={2} placeholder="Exploración física, signos vitales, hallazgos" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="analisis">Análisis</Label>
+            <Textarea id="analisis" name="analisis" rows={2} placeholder="Diagnóstico o impresión diagnóstica" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="plan">Plan</Label>
+            <Textarea id="plan" name="plan" rows={2} placeholder="Tratamiento, indicaciones, receta, seguimiento" />
+          </div>
+        </div>
+      )}
+
+      {recordType === "psicologia" && (
+        <div className="space-y-4 rounded-lg border border-dashed p-3">
+          <div className="space-y-2">
+            <Label htmlFor="motivoSesion">Motivo de la sesión</Label>
+            <Textarea id="motivoSesion" name="motivoSesion" rows={2} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="observaciones">Observaciones clínicas</Label>
+            <Textarea id="observaciones" name="observaciones" rows={3} placeholder="Estado de ánimo, afecto, contenido del pensamiento, etc." />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="planTratamiento">Plan de tratamiento</Label>
+            <Textarea id="planTratamiento" name="planTratamiento" rows={2} />
+          </div>
+        </div>
+      )}
+
+      {recordType === "general" && (
+        <div className="space-y-2">
+          <Label htmlFor="notes">Notas clínicas</Label>
+          <Textarea id="notes" name="notes" rows={5} />
+        </div>
+      )}
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="visibleToPatient" className="size-4" />

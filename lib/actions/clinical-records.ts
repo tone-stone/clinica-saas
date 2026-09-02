@@ -13,8 +13,34 @@ const recordSchema = z.object({
   recordType: z.enum(["general", "medicina", "psicologia"]),
   summary: z.string().min(2, "Ingresa un resumen"),
   notes: z.string().optional(),
+  subjetivo: z.string().optional(),
+  objetivo: z.string().optional(),
+  analisis: z.string().optional(),
+  plan: z.string().optional(),
+  motivoSesion: z.string().optional(),
+  observaciones: z.string().optional(),
+  planTratamiento: z.string().optional(),
   visibleToPatient: z.string().optional(),
 });
+
+function buildContent(data: z.infer<typeof recordSchema>): Record<string, unknown> {
+  if (data.recordType === "medicina") {
+    return {
+      subjetivo: data.subjetivo || null,
+      objetivo: data.objetivo || null,
+      analisis: data.analisis || null,
+      plan: data.plan || null,
+    };
+  }
+  if (data.recordType === "psicologia") {
+    return {
+      motivo_sesion: data.motivoSesion || null,
+      observaciones: data.observaciones || null,
+      plan_tratamiento: data.planTratamiento || null,
+    };
+  }
+  return data.notes ? { notes: data.notes } : {};
+}
 
 export interface ClinicalRecordFormState {
   error?: string;
@@ -36,6 +62,13 @@ export async function createClinicalRecord(
     recordType: formData.get("recordType"),
     summary: formData.get("summary"),
     notes: formData.get("notes"),
+    subjetivo: formData.get("subjetivo"),
+    objetivo: formData.get("objetivo"),
+    analisis: formData.get("analisis"),
+    plan: formData.get("plan"),
+    motivoSesion: formData.get("motivoSesion"),
+    observaciones: formData.get("observaciones"),
+    planTratamiento: formData.get("planTratamiento"),
     visibleToPatient: formData.get("visibleToPatient") || undefined,
   });
   if (!parsed.success) {
@@ -57,7 +90,7 @@ export async function createClinicalRecord(
     staff_id: user.id,
     record_type: parsed.data.recordType as ClinicalRecordType,
     summary: parsed.data.summary,
-    content: parsed.data.notes ? { notes: parsed.data.notes } : {},
+    content: buildContent(parsed.data),
     visible_to_patient: parsed.data.visibleToPatient === "on",
   });
   if (error) return { error: error.message };

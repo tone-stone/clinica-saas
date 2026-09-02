@@ -15,9 +15,43 @@ import { AppointmentStatusActions } from "@/components/appointment-status-action
 import { EditAppointmentDialog } from "@/components/edit-appointment-dialog";
 import { DeletePatientButton } from "@/components/delete-patient-button";
 import { ClinicalRecordForm } from "@/components/clinical-record-form";
+import { AssessmentForm } from "@/components/assessment-form";
+import { AssessmentHistory } from "@/components/assessment-history";
+import { ConsentForm } from "@/components/consent-form";
+import { PatientPhotoUpload } from "@/components/patient-photo-upload";
 import { AttachmentUploadForm } from "@/components/attachment-upload-form";
 import { getAuthenticatedAssetUrl } from "@/lib/cloudinary/signed-url";
 import type { AppointmentStatus } from "@/lib/supabase/database.types";
+
+const CONTENT_FIELD_LABEL: Record<string, string> = {
+  notes: "Notas",
+  subjetivo: "Subjetivo",
+  objetivo: "Objetivo",
+  analisis: "Análisis",
+  plan: "Plan",
+  motivo_sesion: "Motivo de la sesión",
+  observaciones: "Observaciones",
+  plan_tratamiento: "Plan de tratamiento",
+};
+
+function RecordContent({ content }: { content: Record<string, unknown> }) {
+  const entries = Object.entries(content).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].length > 0
+  );
+  if (entries.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-2">
+      {entries.map(([key, value]) => (
+        <div key={key}>
+          <p className="text-xs font-medium text-muted-foreground">
+            {CONTENT_FIELD_LABEL[key] ?? key}
+          </p>
+          <p className="whitespace-pre-wrap text-sm">{value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const STATUS_LABEL: Record<AppointmentStatus, string> = {
   pending: "Pendiente",
@@ -47,38 +81,68 @@ export default async function PatientDetailPage({
 
   const staffOptions = await getClinicalStaff(tenant.id);
 
-  const [{ data: appointments }, { data: records }, { data: attachments }, busySlots, availabilityByStaff] =
-    await Promise.all([
-      supabase
-        .from("appointments")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .eq("patient_id", id)
-        .order("scheduled_at", { ascending: false }),
-      supabase
-        .from("clinical_records")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .eq("patient_id", id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("attachments")
-        .select("*")
-        .eq("tenant_id", tenant.id)
-        .eq("patient_id", id)
-        .order("created_at", { ascending: false }),
-      getBusySlots(tenant.id),
-      getAvailabilityMap(tenant.id, staffOptions.map((s) => s.userId)),
-    ]);
+  const [
+    { data: appointments },
+    { data: records },
+    { data: attachments },
+    { data: assessments },
+    busySlots,
+    availabilityByStaff,
+  ] = await Promise.all([
+    supabase
+      .from("appointments")
+      .select("*")
+      .eq("tenant_id", tenant.id)
+      .eq("patient_id", id)
+      .order("scheduled_at", { ascending: false }),
+    supabase
+      .from("clinical_records")
+      .select("*")
+      .eq("tenant_id", tenant.id)
+      .eq("patient_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("attachments")
+      .select("*")
+      .eq("tenant_id", tenant.id)
+      .eq("patient_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("assessments")
+      .select("id, scale_type, score, created_at")
+      .eq("tenant_id", tenant.id)
+      .eq("patient_id", id)
+      .order("created_at", { ascending: true }),
+    getBusySlots(tenant.id),
+    getAvailabilityMap(tenant.id, staffOptions.map((s) => s.userId)),
+  ]);
+
+  const { data: consents } = await supabase
+    .from("consents")
+    .select("*")
+    .eq("tenant_id", tenant.id)
+    .eq("patient_id", id)
+    .order("created_at", { ascending: false });
 
   return (
     <div className="space-y-10">
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{patient.full_name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {[patient.email, patient.phone].filter(Boolean).join(" · ") || "Sin datos de contacto"}
-          </p>
+        <div className="flex items-center gap-4">
+          <PatientPhotoUpload
+            patientId={id}
+            patientName={patient.full_name}
+            photoUrl={
+              patient.photo_public_id
+                ? getAuthenticatedAssetUrl(patient.photo_public_id, "image")
+                : null
+            }
+          />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{patient.full_name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {[patient.email, patient.phone].filter(Boolean).join(" · ") || "Sin datos de contacto"}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {patient.user_id && <Badge variant="outline">Con acceso al portal</Badge>}
@@ -94,6 +158,11 @@ export default async function PatientDetailPage({
               </Button>
             </form>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link href={`/pacientes/${id}/expediente`}>Expediente</Link>}
+          />
           <Button variant="outline" size="sm" render={<Link href={`/pacientes/${id}/editar`}>Editar</Link>} />
           <DeletePatientButton patientId={id} />
         </div>
@@ -112,6 +181,16 @@ export default async function PatientDetailPage({
                   <Badge variant="outline">{STATUS_LABEL[appt.status]}</Badge>
                 </div>
                 {appt.reason && <p className="mt-1 text-sm text-muted-foreground">{appt.reason}</p>}
+                {appt.price_cents != null && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    ${(appt.price_cents / 100).toLocaleString("es")} ·{" "}
+                    {appt.payment_status === "paid"
+                      ? "Pagado"
+                      : appt.payment_status === "waived"
+                        ? "Exento"
+                        : "Sin pagar"}
+                  </p>
+                )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <AppointmentStatusActions
                     appointmentId={appt.id}
@@ -125,6 +204,8 @@ export default async function PatientDetailPage({
                       scheduledAt={appt.scheduled_at}
                       durationMinutes={appt.duration_minutes}
                       reason={appt.reason}
+                      priceCents={appt.price_cents}
+                      paymentStatus={appt.payment_status}
                       staffOptions={staffOptions}
                       revalidateTarget={`/pacientes/${id}`}
                     />
@@ -165,9 +246,7 @@ export default async function PatientDetailPage({
                 <p className="mt-1 text-xs text-muted-foreground">
                   {record.record_type} · {new Date(record.created_at).toLocaleString("es")}
                 </p>
-                {"notes" in record.content && typeof record.content.notes === "string" && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm">{record.content.notes}</p>
-                )}
+                <RecordContent content={record.content} />
               </div>
             ))}
             {(!records || records.length === 0) && (
@@ -180,6 +259,43 @@ export default async function PatientDetailPage({
           <div className="mt-3">
             <ClinicalRecordForm patientId={id} />
           </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium">Escalas clínicas</h2>
+          <AssessmentForm patientId={id} />
+        </div>
+        <div className="mt-4">
+          <AssessmentHistory assessments={assessments ?? []} />
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium">Consentimientos</h2>
+          <ConsentForm patientId={id} />
+        </div>
+        <div className="mt-4 space-y-2">
+          {consents?.map((consent) => (
+            <div key={consent.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+              <div>
+                <p className="font-medium">{consent.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {consent.signed_at
+                    ? `Firmado por ${consent.signed_name} el ${new Date(consent.signed_at).toLocaleDateString("es")}`
+                    : "Pendiente de firma"}
+                </p>
+              </div>
+              <Badge variant={consent.signed_at ? "secondary" : "outline"}>
+                {consent.signed_at ? "Firmado" : "Pendiente"}
+              </Badge>
+            </div>
+          ))}
+          {(!consents || consents.length === 0) && (
+            <p className="text-sm text-muted-foreground">Sin consentimientos registrados.</p>
+          )}
         </div>
       </section>
 

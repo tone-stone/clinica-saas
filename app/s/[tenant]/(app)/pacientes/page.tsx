@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarClock, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -14,7 +15,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getTenantBySubdomain } from "@/lib/tenant/get-tenant";
 import { getPatientSummaries } from "@/lib/queries/patient-summaries";
 import { getClinicalStaff } from "@/lib/queries/staff";
+import { getAuthenticatedAssetUrl } from "@/lib/cloudinary/signed-url";
 import type { AppointmentStatus } from "@/lib/supabase/database.types";
+
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
+}
 
 const STATUS_LABEL: Record<AppointmentStatus, string> = {
   pending: "Pendiente",
@@ -37,7 +44,7 @@ export default async function PatientsPage({
   const [{ data: patients }, staffOptions] = await Promise.all([
     supabase
       .from("patients")
-      .select("id, full_name, email, phone, created_at")
+      .select("id, full_name, email, phone, photo_public_id, created_at")
       .eq("tenant_id", tenant.id)
       .order("created_at", { ascending: false }),
     getClinicalStaff(tenant.id),
@@ -76,15 +83,28 @@ export default async function PatientsPage({
               return (
                 <TableRow key={patient.id}>
                   <TableCell className="whitespace-normal">
-                    <Link
-                      href={`/pacientes/${patient.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {patient.full_name}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">
-                      {[patient.email, patient.phone].filter(Boolean).join(" · ") || "Sin contacto"}
-                    </p>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar size="sm">
+                        {patient.photo_public_id && (
+                          <AvatarImage
+                            src={getAuthenticatedAssetUrl(patient.photo_public_id, "image")}
+                            alt={patient.full_name}
+                          />
+                        )}
+                        <AvatarFallback>{initialsOf(patient.full_name)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <Link
+                          href={`/pacientes/${patient.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {patient.full_name}
+                        </Link>
+                        <p className="text-xs text-muted-foreground">
+                          {[patient.email, patient.phone].filter(Boolean).join(" · ") || "Sin contacto"}
+                        </p>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {upcoming ? (

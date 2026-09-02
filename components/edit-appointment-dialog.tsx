@@ -32,12 +32,16 @@ function toDatetimeLocal(iso: string) {
 
 const initialState: AppointmentFormState = {};
 
+const PAYMENT_STATUS_OPTIONS = { unpaid: "Sin pagar", paid: "Pagado", waived: "Exento" };
+
 export function EditAppointmentDialog({
   appointmentId,
   staffId,
   scheduledAt,
   durationMinutes,
   reason,
+  priceCents,
+  paymentStatus,
   staffOptions,
   revalidateTarget,
 }: {
@@ -46,6 +50,8 @@ export function EditAppointmentDialog({
   scheduledAt: string;
   durationMinutes: number;
   reason: string | null;
+  priceCents?: number | null;
+  paymentStatus?: string;
   staffOptions: StaffOption[];
   revalidateTarget: string;
 }) {
@@ -120,6 +126,36 @@ export function EditAppointmentDialog({
           <div className="space-y-2">
             <Label htmlFor="editReason">Motivo</Label>
             <Input id="editReason" name="reason" defaultValue={reason ?? ""} />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="editPrice">Precio (opcional)</Label>
+              <Input
+                id="editPrice"
+                name="price"
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="0.00"
+                defaultValue={priceCents != null ? priceCents / 100 : ""}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Estatus de pago</Label>
+              <Select items={PAYMENT_STATUS_OPTIONS} name="paymentStatus" defaultValue={paymentStatus ?? "unpaid"}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PAYMENT_STATUS_OPTIONS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <DialogFooter>

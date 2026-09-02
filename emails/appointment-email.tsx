@@ -10,7 +10,13 @@ import {
   Text,
 } from "@react-email/components";
 
-export type AppointmentEmailEvent = "created" | "confirmed" | "cancelled" | "reminder";
+export type AppointmentEmailEvent =
+  | "created"
+  | "confirmed"
+  | "cancelled"
+  | "reminder"
+  | "starting"
+  | "finished";
 
 const COPY: Record<AppointmentEmailEvent, { subject: string; heading: string; intro: string }> = {
   created: {
@@ -32,6 +38,16 @@ const COPY: Record<AppointmentEmailEvent, { subject: string; heading: string; in
     subject: "Recordatorio: tienes una cita mañana",
     heading: "Recordatorio de tu cita",
     intro: "Tu cita es mañana. Aquí están los detalles.",
+  },
+  starting: {
+    subject: "Tu cita está por comenzar",
+    heading: "Es hora de tu cita",
+    intro: "Tu cita comienza en este momento.",
+  },
+  finished: {
+    subject: "Tu cita ha finalizado",
+    heading: "Tu cita terminó",
+    intro: "Gracias por tu visita. Estos son los datos de la sesión que acaba de concluir.",
   },
 };
 

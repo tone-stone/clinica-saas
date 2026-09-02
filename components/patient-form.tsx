@@ -5,6 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const GENDER_OPTIONS = {
+  masculino: "Masculino",
+  femenino: "Femenino",
+  no_binario: "No binario",
+} as const;
 import { createPatient, updatePatient, type PatientFormState } from "@/lib/actions/patients";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -48,16 +62,27 @@ export function PatientForm({ patient }: { patient?: Patient }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="dateOfBirth">Fecha de nacimiento</Label>
-          <Input
+          <DatePicker
             id="dateOfBirth"
             name="dateOfBirth"
-            type="date"
-            defaultValue={patient?.date_of_birth ?? ""}
+            defaultValue={patient?.date_of_birth}
+            placeholder="Selecciona la fecha de nacimiento"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="gender">Género</Label>
-          <Input id="gender" name="gender" defaultValue={patient?.gender ?? ""} />
+          <Select name="gender" items={GENDER_OPTIONS} defaultValue={patient?.gender ?? undefined}>
+            <SelectTrigger id="gender" className="w-full">
+              <SelectValue placeholder="Selecciona una opción" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(GENDER_OPTIONS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

@@ -9,6 +9,9 @@ export type AppointmentStatus = "pending" | "confirmed" | "cancelled" | "complet
 export type ClinicalRecordType = "general" | "medicina" | "psicologia";
 export type AttachmentResourceType = "image" | "raw" | "video";
 export type BlogPostStatus = "draft" | "published";
+export type ScaleType = "phq9" | "gad7";
+export type PaymentStatus = "unpaid" | "paid" | "waived";
+export type WaitlistStatus = "waiting" | "resolved" | "cancelled";
 
 export interface Database {
   public: {
@@ -123,6 +126,7 @@ export interface Database {
           emergency_contact_name: string | null;
           emergency_contact_phone: string | null;
           notes: string | null;
+          photo_public_id: string | null;
           created_by: string | null;
           created_at: string;
         };
@@ -139,6 +143,7 @@ export interface Database {
           emergency_contact_name?: string | null;
           emergency_contact_phone?: string | null;
           notes?: string | null;
+          photo_public_id?: string | null;
           created_by?: string | null;
           created_at?: string;
         };
@@ -155,6 +160,7 @@ export interface Database {
           emergency_contact_name?: string | null;
           emergency_contact_phone?: string | null;
           notes?: string | null;
+          photo_public_id?: string | null;
           created_by?: string | null;
           created_at?: string;
         };
@@ -172,6 +178,10 @@ export interface Database {
           reason: string | null;
           notes: string | null;
           reminder_sent_at: string | null;
+          started_notified_at: string | null;
+          finished_notified_at: string | null;
+          price_cents: number | null;
+          payment_status: PaymentStatus;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -187,6 +197,10 @@ export interface Database {
           reason?: string | null;
           notes?: string | null;
           reminder_sent_at?: string | null;
+          started_notified_at?: string | null;
+          finished_notified_at?: string | null;
+          price_cents?: number | null;
+          payment_status?: PaymentStatus;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -202,6 +216,10 @@ export interface Database {
           reason?: string | null;
           notes?: string | null;
           reminder_sent_at?: string | null;
+          started_notified_at?: string | null;
+          finished_notified_at?: string | null;
+          price_cents?: number | null;
+          payment_status?: PaymentStatus;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -209,6 +227,155 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: "appointments_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      assessments: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          patient_id: string;
+          staff_id: string;
+          appointment_id: string | null;
+          scale_type: ScaleType;
+          answers: number[];
+          score: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          patient_id: string;
+          staff_id: string;
+          appointment_id?: string | null;
+          scale_type: ScaleType;
+          answers?: number[];
+          score: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          patient_id?: string;
+          staff_id?: string;
+          appointment_id?: string | null;
+          scale_type?: ScaleType;
+          answers?: number[];
+          score?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      appointment_intake: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          appointment_id: string;
+          patient_id: string;
+          motivo: string | null;
+          sintomas: string | null;
+          severidad: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          appointment_id: string;
+          patient_id: string;
+          motivo?: string | null;
+          sintomas?: string | null;
+          severidad?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          appointment_id?: string;
+          patient_id?: string;
+          motivo?: string | null;
+          sintomas?: string | null;
+          severidad?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      consents: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          patient_id: string;
+          title: string;
+          body: string;
+          signed_name: string | null;
+          signed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          patient_id: string;
+          title: string;
+          body: string;
+          signed_name?: string | null;
+          signed_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          patient_id?: string;
+          title?: string;
+          body?: string;
+          signed_name?: string | null;
+          signed_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      waitlist_entries: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          patient_id: string;
+          staff_id: string | null;
+          note: string | null;
+          status: WaitlistStatus;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          patient_id: string;
+          staff_id?: string | null;
+          note?: string | null;
+          status?: WaitlistStatus;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          patient_id?: string;
+          staff_id?: string | null;
+          note?: string | null;
+          status?: WaitlistStatus;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "waitlist_entries_patient_id_fkey";
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";

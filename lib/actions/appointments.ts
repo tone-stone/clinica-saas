@@ -186,11 +186,17 @@ export async function updateAppointmentDetails(
 
   const parsed = appointmentSchema
     .omit({ patientId: true })
+    .extend({
+      price: z.coerce.number().min(0).optional(),
+      paymentStatus: z.enum(["unpaid", "paid", "waived"]).optional(),
+    })
     .safeParse({
       staffId: formData.get("staffId"),
       scheduledAt: formData.get("scheduledAt"),
       durationMinutes: formData.get("durationMinutes") || 30,
       reason: formData.get("reason"),
+      price: formData.get("price") || undefined,
+      paymentStatus: formData.get("paymentStatus") || undefined,
     });
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -207,6 +213,8 @@ export async function updateAppointmentDetails(
       scheduled_at: new Date(parsed.data.scheduledAt).toISOString(),
       duration_minutes: parsed.data.durationMinutes,
       reason: parsed.data.reason || null,
+      price_cents: parsed.data.price !== undefined ? Math.round(parsed.data.price * 100) : null,
+      payment_status: parsed.data.paymentStatus ?? "unpaid",
     })
     .eq("id", id);
   if (error) return { error: error.message };
@@ -214,6 +222,20 @@ export async function updateAppointmentDetails(
   revalidatePath(revalidateTarget);
   revalidatePath("/citas");
   return {};
+}
+
+/** Marca rápidamente una cita como pagada/no pagada, sin abrir el diálogo completo de edición. */
+export async function updatePaymentStatus(formData: FormData) {
+  const id = String(formData.get("id"));
+  const paymentStatus = formData.get("paymentStatus") as "unpaid" | "paid" | "waived";
+  const revalidateTarget = String(formData.get("revalidateTarget") ?? "/citas");
+
+  const supabase = await createClient();
+  await supabase.from("appointments").update({ payment_status: paymentStatus }).eq("id", id);
+
+  revalidatePath(revalidateTarget);
+  revalidatePath("/citas");
+  revalidatePath("/dashboard");
 }
 
 /**

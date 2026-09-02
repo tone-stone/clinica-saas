@@ -9,6 +9,8 @@ import { getBusySlots } from "@/lib/queries/appointments";
 import { getAvailabilityMap } from "@/lib/queries/availability";
 import { requestAppointment, updateAppointmentStatus } from "@/lib/actions/appointments";
 import { AppointmentScheduler } from "@/components/appointment-scheduler";
+import { IntakeForm } from "@/components/intake-form";
+import { WaitlistJoinForm } from "@/components/waitlist-join-form";
 import type { AppointmentStatus } from "@/lib/supabase/database.types";
 
 const STATUS_LABEL: Record<AppointmentStatus, string> = {
@@ -36,16 +38,25 @@ export default async function PortalAppointmentsPage({
   const staffOptions = await getClinicalStaff(tenant.id);
 
   const supabase = await createClient();
-  const [{ data: appointments }, busySlots, availabilityByStaff] = await Promise.all([
-    supabase
-      .from("appointments")
-      .select("*")
-      .eq("tenant_id", tenant.id)
-      .eq("patient_id", patient.id)
-      .order("scheduled_at", { ascending: false }),
-    getBusySlots(tenant.id),
-    getAvailabilityMap(tenant.id, staffOptions.map((s) => s.userId)),
-  ]);
+  const [{ data: appointments }, { data: intakeEntries }, busySlots, availabilityByStaff] =
+    await Promise.all([
+      supabase
+        .from("appointments")
+        .select("*")
+        .eq("tenant_id", tenant.id)
+        .eq("patient_id", patient.id)
+        .order("scheduled_at", { ascending: false }),
+      supabase
+        .from("appointment_intake")
+        .select("appointment_id, motivo, sintomas, severidad")
+        .eq("tenant_id", tenant.id)
+        .eq("patient_id", patient.id),
+      getBusySlots(tenant.id),
+      getAvailabilityMap(tenant.id, staffOptions.map((s) => s.userId)),
+    ]);
+
+  const intakeByAppointmentId = new Map((intakeEntries ?? []).map((i) => [i.appointment_id, i]));
+  const now = new Date();
 
   return (
     <div>
@@ -59,14 +70,24 @@ export default async function PortalAppointmentsPage({
             </div>
             {appt.reason && <p className="mt-1 text-sm text-muted-foreground">{appt.reason}</p>}
             {(appt.status === "pending" || appt.status === "confirmed") && (
-              <form action={updateAppointmentStatus} className="mt-3">
-                <input type="hidden" name="id" value={appt.id} />
-                <input type="hidden" name="status" value="cancelled" />
-                <input type="hidden" name="revalidateTarget" value="/portal/citas" />
-                <Button type="submit" size="sm" variant="outline">
-                  Cancelar cita
-                </Button>
-              </form>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <form action={updateAppointmentStatus}>
+                  <input type="hidden" name="id" value={appt.id} />
+                  <input type="hidden" name="status" value="cancelled" />
+                  <input type="hidden" name="revalidateTarget" value="/portal/citas" />
+                  <Button type="submit" size="sm" variant="outline">
+                    Cancelar cita
+                  </Button>
+                </form>
+                {new Date(appt.scheduled_at) >= now && (
+                  <IntakeForm
+                    appointmentId={appt.id}
+                    defaultMotivo={intakeByAppointmentId.get(appt.id)?.motivo}
+                    defaultSintomas={intakeByAppointmentId.get(appt.id)?.sintomas}
+                    defaultSeveridad={intakeByAppointmentId.get(appt.id)?.severidad}
+                  />
+                )}
+              </div>
             )}
           </div>
         ))}
@@ -76,7 +97,10 @@ export default async function PortalAppointmentsPage({
       </div>
 
       <Separator className="my-8" />
-      <h2 className="text-lg font-medium">Solicitar una cita</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-medium">Solicitar una cita</h2>
+        <WaitlistJoinForm />
+      </div>
       <div className="mt-4">
         <AppointmentScheduler
           staffOptions={staffOptions}

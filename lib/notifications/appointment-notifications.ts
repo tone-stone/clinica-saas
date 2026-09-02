@@ -26,6 +26,8 @@ const WHATSAPP_INTRO: Record<AppointmentEmailEvent, string> = {
   confirmed: "✅ Tu cita en",
   cancelled: "❌ Tu cita en",
   reminder: "⏰ Recordatorio: tienes una cita mañana en",
+  starting: "🔔 Tu cita en",
+  finished: "🏁 Tu cita en",
 };
 
 const WHATSAPP_OUTRO: Record<AppointmentEmailEvent, string> = {
@@ -33,6 +35,8 @@ const WHATSAPP_OUTRO: Record<AppointmentEmailEvent, string> = {
   confirmed: "quedó *confirmada*.",
   cancelled: "fue *cancelada*.",
   reminder: "está *confirmada* para mañana.",
+  starting: "*está comenzando ahora*.",
+  finished: "*acaba de terminar*. ¡Gracias por tu visita!",
 };
 
 function scheduledAtLabel(scheduledAt: string) {
