@@ -6,6 +6,12 @@ import { SiteHeader } from "@/components/site-header";
 import { BackLink } from "@/components/back-link";
 import { getActivePlans } from "@/lib/queries/plans";
 
+const INTERVAL_LABEL: Record<string, string> = {
+  year: "año",
+  semiannual: "semestre",
+  month: "mes",
+};
+
 export default async function PricingPage() {
   const plans = await getActivePlans();
 
@@ -16,7 +22,7 @@ export default async function PricingPage() {
         <BackLink className="mb-10" />
         <h1 className="text-center text-3xl font-semibold tracking-tight">Precios</h1>
         <p className="mt-3 text-center text-muted-foreground">
-          Suscripción anual, sin sorpresas. Cancela cuando quieras.
+          Elige el plan que mejor se adapte a tu clínica. Sin sorpresas, cancela cuando quieras.
         </p>
 
         <div className="mt-12 grid gap-6 sm:grid-cols-2">
@@ -26,7 +32,7 @@ export default async function PricingPage() {
               <p className="mt-2 text-3xl font-semibold">
                 ${(plan.price_cents / 100).toLocaleString("es")}
                 <span className="text-sm font-normal text-muted-foreground">
-                  /{plan.interval === "year" ? "año" : "mes"}
+                  /{INTERVAL_LABEL[plan.interval] ?? plan.interval}
                 </span>
               </p>
               {(plan.max_staff || plan.max_patients) && (

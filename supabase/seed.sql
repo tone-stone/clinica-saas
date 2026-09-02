@@ -1,7 +1,9 @@
--- Plan anual por defecto. Reemplazar stripe_price_id por el Price ID real de Stripe
+-- Planes por defecto. Reemplazar stripe_price_id por los Price ID reales de Stripe
 -- (modo test primero) antes de probar el flujo de checkout.
 insert into public.plans (name, stripe_price_id, interval, price_cents, currency, max_staff, max_patients)
-values ('Plan Anual', 'price_REEMPLAZAR', 'year', 29900 * 12, 'usd', null, null)
+values
+  ('Plan Semestral', 'price_semestral_REEMPLAZAR', 'semiannual', 161400, 'usd', null, null),
+  ('Plan Anual',     'price_anual_REEMPLAZAR',     'year',       286900, 'usd', null, null)
 on conflict (stripe_price_id) do nothing;
 
 -- ---------------------------------------------------------------------------
