@@ -5,7 +5,54 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenant } from "@/lib/tenant/current-tenant";
+import { notifyAppointmentEvent } from "@/lib/notifications/appointment-notifications";
 import type { AppointmentStatus } from "@/lib/supabase/database.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
+
+/** Junta los datos de paciente/profesional que necesita la notificación y la dispara. */
+async function notifyAppointment(
+  supabase: SupabaseClient<Database>,
+  event: "created" | "confirmed" | "cancelled",
+  tenantName: string,
+  appointment: {
+    patient_id: string;
+    staff_id: string;
+    scheduled_at: string;
+    duration_minutes: number;
+    reason: string | null;
+  }
+) {
+  try {
+    const [{ data: patient }, { data: staffProfile }] = await Promise.all([
+      supabase
+        .from("patients")
+        .select("full_name, email, phone")
+        .eq("id", appointment.patient_id)
+        .maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", appointment.staff_id)
+        .maybeSingle(),
+    ]);
+    if (!patient) return;
+
+    await notifyAppointmentEvent({
+      event,
+      clinicName: tenantName,
+      patientName: patient.full_name,
+      patientEmail: patient.email,
+      patientPhone: patient.phone,
+      staffName: staffProfile?.full_name ?? staffProfile?.email ?? "tu profesional",
+      scheduledAt: appointment.scheduled_at,
+      durationMinutes: appointment.duration_minutes,
+      reason: appointment.reason,
+    });
+  } catch (error) {
+    console.error("[notifications] No se pudo notificar la cita:", error);
+  }
+}
 
 const appointmentSchema = z.object({
   patientId: z.string().uuid(),
@@ -46,17 +93,23 @@ export async function createAppointment(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("appointments").insert({
-    tenant_id: tenant.id,
-    patient_id: parsed.data.patientId,
-    staff_id: parsed.data.staffId,
-    scheduled_at: new Date(parsed.data.scheduledAt).toISOString(),
-    duration_minutes: parsed.data.durationMinutes,
-    reason: parsed.data.reason || null,
-    status: "pending",
-    created_by: user?.id,
-  });
+  const { data: appointment, error } = await supabase
+    .from("appointments")
+    .insert({
+      tenant_id: tenant.id,
+      patient_id: parsed.data.patientId,
+      staff_id: parsed.data.staffId,
+      scheduled_at: new Date(parsed.data.scheduledAt).toISOString(),
+      duration_minutes: parsed.data.durationMinutes,
+      reason: parsed.data.reason || null,
+      status: "pending",
+      created_by: user?.id,
+    })
+    .select("patient_id, staff_id, scheduled_at, duration_minutes, reason")
+    .single();
   if (error) return { error: error.message };
+
+  await notifyAppointment(supabase, "created", tenant.name, appointment);
 
   revalidatePath("/citas");
   revalidatePath(`/pacientes/${parsed.data.patientId}`);
@@ -102,19 +155,65 @@ export async function requestAppointment(
     return { error: "Revisa los datos", fieldErrors };
   }
 
-  const { error } = await supabase.from("appointments").insert({
-    tenant_id: tenant.id,
-    patient_id: patient.id,
-    staff_id: parsed.data.staffId,
-    scheduled_at: new Date(parsed.data.scheduledAt).toISOString(),
-    status: "pending",
-    reason: parsed.data.reason || null,
-    created_by: user.id,
-  });
+  const { data: appointment, error } = await supabase
+    .from("appointments")
+    .insert({
+      tenant_id: tenant.id,
+      patient_id: patient.id,
+      staff_id: parsed.data.staffId,
+      scheduled_at: new Date(parsed.data.scheduledAt).toISOString(),
+      status: "pending",
+      reason: parsed.data.reason || null,
+      created_by: user.id,
+    })
+    .select("patient_id, staff_id, scheduled_at, duration_minutes, reason")
+    .single();
   if (error) return { error: error.message };
+
+  await notifyAppointment(supabase, "created", tenant.name, appointment);
 
   revalidatePath("/portal/citas");
   redirect("/portal/citas");
+}
+
+/** Staff reprograma una cita existente: profesional, fecha/hora, duración o motivo. */
+export async function updateAppointmentDetails(
+  _prevState: AppointmentFormState,
+  formData: FormData
+): Promise<AppointmentFormState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Falta la cita a editar" };
+
+  const parsed = appointmentSchema
+    .omit({ patientId: true })
+    .safeParse({
+      staffId: formData.get("staffId"),
+      scheduledAt: formData.get("scheduledAt"),
+      durationMinutes: formData.get("durationMinutes") || 30,
+      reason: formData.get("reason"),
+    });
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) fieldErrors[String(issue.path[0])] = issue.message;
+    return { error: "Revisa los datos de la cita", fieldErrors };
+  }
+
+  const revalidateTarget = String(formData.get("revalidateTarget") ?? "/citas");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("appointments")
+    .update({
+      staff_id: parsed.data.staffId,
+      scheduled_at: new Date(parsed.data.scheduledAt).toISOString(),
+      duration_minutes: parsed.data.durationMinutes,
+      reason: parsed.data.reason || null,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath(revalidateTarget);
+  revalidatePath("/citas");
+  return {};
 }
 
 /**
@@ -128,7 +227,17 @@ export async function updateAppointmentStatus(formData: FormData) {
   const revalidateTarget = String(formData.get("revalidateTarget") ?? "/citas");
 
   const supabase = await createClient();
-  await supabase.from("appointments").update({ status }).eq("id", id);
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .update({ status })
+    .eq("id", id)
+    .select("patient_id, staff_id, scheduled_at, duration_minutes, reason")
+    .single();
+
+  if (appointment && (status === "confirmed" || status === "cancelled")) {
+    const tenant = await getCurrentTenant();
+    if (tenant) await notifyAppointment(supabase, status, tenant.name, appointment);
+  }
 
   revalidatePath(revalidateTarget);
   revalidatePath("/citas");

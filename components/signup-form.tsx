@@ -92,26 +92,39 @@ export function SignupForm({ plans, defaultPlanId }: { plans: Plan[]; defaultPla
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="planId">Plan</Label>
-        <input type="hidden" name="planId" value={planId} />
-        <Select value={planId} onValueChange={(value) => setPlanId(value ?? "")}>
-          <SelectTrigger id="planId" className="w-full">
-            <SelectValue placeholder="Selecciona un plan" />
-          </SelectTrigger>
-          <SelectContent>
-            {plans.map((plan) => (
-              <SelectItem key={plan.id} value={plan.id}>
-                {plan.name} — ${(plan.price_cents / 100).toLocaleString("es")}/
-                {plan.interval === "year" ? "año" : "mes"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {state.fieldErrors?.planId && (
-          <p className="text-sm text-destructive">{state.fieldErrors.planId}</p>
-        )}
-      </div>
+      {plans.length > 0 && (
+        <div className="space-y-2">
+          <Label htmlFor="planId">Plan</Label>
+          <input type="hidden" name="planId" value={planId} />
+          <Select
+            items={Object.fromEntries(
+              plans.map((plan) => [
+                plan.id,
+                `${plan.name} — $${(plan.price_cents / 100).toLocaleString("es")}/${
+                  plan.interval === "year" ? "año" : "mes"
+                }`,
+              ])
+            )}
+            value={planId}
+            onValueChange={(value) => setPlanId(value ?? "")}
+          >
+            <SelectTrigger id="planId" className="w-full">
+              <SelectValue placeholder="Selecciona un plan" />
+            </SelectTrigger>
+            <SelectContent>
+              {plans.map((plan) => (
+                <SelectItem key={plan.id} value={plan.id}>
+                  {plan.name} — ${(plan.price_cents / 100).toLocaleString("es")}/
+                  {plan.interval === "year" ? "año" : "mes"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {state.fieldErrors?.planId && (
+            <p className="text-sm text-destructive">{state.fieldErrors.planId}</p>
+          )}
+        </div>
+      )}
 
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Creando tu clínica…" : "Continuar al pago"}

@@ -1,6 +1,20 @@
+import { Clock } from "lucide-react";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { AvailabilityForm } from "@/components/availability-form";
 import { createClient } from "@/lib/supabase/server";
 import { getTenantBySubdomain } from "@/lib/tenant/get-tenant";
 import { getCurrentMembership } from "@/lib/tenant/get-membership";
+import { getAvailabilityMap } from "@/lib/queries/availability";
 import { InviteStaffForm } from "@/components/invite-staff-form";
 
 const STAFF_ROLE_LABEL: Record<string, string> = {
@@ -34,25 +48,63 @@ export default async function TeamPage({
     .select("id, full_name, email")
     .in("id", (memberships ?? []).map((m) => m.user_id));
 
+  const isOwner = membership?.role === "owner";
+  const clinicalMembers = (memberships ?? []).filter(
+    (m) => m.role === "owner" || m.staff_role === "doctor" || m.staff_role === "psicologo"
+  );
+  const availabilityMap = await getAvailabilityMap(
+    tenant.id,
+    clinicalMembers.map((m) => m.user_id)
+  );
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Equipo</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Equipo</h1>
 
       <div className="mt-6 space-y-2">
         {memberships?.map((m) => {
           const profile = profiles?.find((p) => p.id === m.user_id);
+          const name = profile?.full_name ?? profile?.email ?? m.user_id;
+          const canEditSchedule =
+            (m.role === "owner" || m.staff_role === "doctor" || m.staff_role === "psicologo") &&
+            (isOwner || membership?.userId === m.user_id);
+
           return (
-            <div key={m.user_id} className="rounded-lg border p-3 text-sm">
-              <p className="font-medium">{profile?.full_name ?? profile?.email ?? m.user_id}</p>
-              <p className="text-muted-foreground">
-                {m.role === "owner" ? "Dueño/a" : STAFF_ROLE_LABEL[m.staff_role ?? ""] ?? "Staff"}
-              </p>
-            </div>
+            <Card key={m.user_id} className="flex-row items-center justify-between p-3">
+              <div className="text-sm">
+                <p className="font-medium">{name}</p>
+                <p className="text-muted-foreground">
+                  {m.role === "owner" ? "Dueño/a" : STAFF_ROLE_LABEL[m.staff_role ?? ""] ?? "Staff"}
+                </p>
+              </div>
+              {canEditSchedule && (
+                <Dialog>
+                  <DialogTrigger render={<Button variant="outline" size="sm" />}>
+                    <Clock className="size-4" />
+                    Horario
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Horario de atención — {name}</DialogTitle>
+                    </DialogHeader>
+                    <AvailabilityForm
+                      staffId={m.user_id}
+                      hours={availabilityMap[m.user_id]}
+                    />
+                    <DialogFooter>
+                      <DialogClose render={<Button variant="outline" size="sm" />}>
+                        Cerrar
+                      </DialogClose>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </Card>
           );
         })}
       </div>
 
-      {membership?.role === "owner" && (
+      {isOwner && (
         <div className="mt-8">
           <h2 className="text-lg font-medium">Invitar a alguien nuevo</h2>
           <div className="mt-4">

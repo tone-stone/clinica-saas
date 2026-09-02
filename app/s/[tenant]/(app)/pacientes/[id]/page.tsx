@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -5,9 +6,14 @@ import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/server";
 import { getTenantBySubdomain } from "@/lib/tenant/get-tenant";
 import { getClinicalStaff } from "@/lib/queries/staff";
+import { getBusySlots } from "@/lib/queries/appointments";
+import { getAvailabilityMap } from "@/lib/queries/availability";
 import { invitePatientToPortal } from "@/lib/actions/patients";
-import { AppointmentForm } from "@/components/appointment-form";
+import { createAppointment } from "@/lib/actions/appointments";
+import { AppointmentScheduler } from "@/components/appointment-scheduler";
 import { AppointmentStatusActions } from "@/components/appointment-status-actions";
+import { EditAppointmentDialog } from "@/components/edit-appointment-dialog";
+import { DeletePatientButton } from "@/components/delete-patient-button";
 import { ClinicalRecordForm } from "@/components/clinical-record-form";
 import { AttachmentUploadForm } from "@/components/attachment-upload-form";
 import { getAuthenticatedAssetUrl } from "@/lib/cloudinary/signed-url";
@@ -39,7 +45,9 @@ export default async function PatientDetailPage({
     .maybeSingle();
   if (!patient) notFound();
 
-  const [{ data: appointments }, { data: records }, { data: attachments }, staffOptions] =
+  const staffOptions = await getClinicalStaff(tenant.id);
+
+  const [{ data: appointments }, { data: records }, { data: attachments }, busySlots, availabilityByStaff] =
     await Promise.all([
       supabase
         .from("appointments")
@@ -59,31 +67,36 @@ export default async function PatientDetailPage({
         .eq("tenant_id", tenant.id)
         .eq("patient_id", id)
         .order("created_at", { ascending: false }),
-      getClinicalStaff(tenant.id),
+      getBusySlots(tenant.id),
+      getAvailabilityMap(tenant.id, staffOptions.map((s) => s.userId)),
     ]);
 
   return (
     <div className="space-y-10">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{patient.full_name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{patient.full_name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {[patient.email, patient.phone].filter(Boolean).join(" · ") || "Sin datos de contacto"}
           </p>
         </div>
-        {!patient.user_id && patient.email && (
-          <form
-            action={async () => {
-              "use server";
-              await invitePatientToPortal(patient.id);
-            }}
-          >
-            <Button type="submit" variant="outline" size="sm">
-              Invitar al portal
-            </Button>
-          </form>
-        )}
-        {patient.user_id && <Badge variant="outline">Con acceso al portal</Badge>}
+        <div className="flex items-center gap-2">
+          {patient.user_id && <Badge variant="outline">Con acceso al portal</Badge>}
+          {!patient.user_id && patient.email && (
+            <form
+              action={async () => {
+                "use server";
+                await invitePatientToPortal(patient.id);
+              }}
+            >
+              <Button type="submit" variant="outline" size="sm">
+                Invitar al portal
+              </Button>
+            </form>
+          )}
+          <Button variant="outline" size="sm" render={<Link href={`/pacientes/${id}/editar`}>Editar</Link>} />
+          <DeletePatientButton patientId={id} />
+        </div>
       </div>
 
       <section className="grid gap-8 lg:grid-cols-2">
@@ -99,12 +112,23 @@ export default async function PatientDetailPage({
                   <Badge variant="outline">{STATUS_LABEL[appt.status]}</Badge>
                 </div>
                 {appt.reason && <p className="mt-1 text-sm text-muted-foreground">{appt.reason}</p>}
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <AppointmentStatusActions
                     appointmentId={appt.id}
                     status={appt.status}
                     revalidateTarget={`/pacientes/${id}`}
                   />
+                  {appt.status !== "cancelled" && appt.status !== "completed" && (
+                    <EditAppointmentDialog
+                      appointmentId={appt.id}
+                      staffId={appt.staff_id}
+                      scheduledAt={appt.scheduled_at}
+                      durationMinutes={appt.duration_minutes}
+                      reason={appt.reason}
+                      staffOptions={staffOptions}
+                      revalidateTarget={`/pacientes/${id}`}
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -116,7 +140,16 @@ export default async function PatientDetailPage({
           <Separator className="my-6" />
           <h3 className="text-sm font-medium">Agendar nueva cita</h3>
           <div className="mt-3">
-            <AppointmentForm patientId={id} staffOptions={staffOptions} />
+            <AppointmentScheduler
+              staffOptions={staffOptions}
+              busySlots={busySlots}
+              availabilityByStaff={availabilityByStaff}
+              action={createAppointment}
+              hiddenFields={{ patientId: id }}
+              submitLabel="Agendar cita"
+              pendingLabel="Agendando…"
+              allowDurationSelect
+            />
           </div>
         </div>
 

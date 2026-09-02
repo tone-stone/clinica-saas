@@ -171,6 +171,7 @@ export interface Database {
           status: AppointmentStatus;
           reason: string | null;
           notes: string | null;
+          reminder_sent_at: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -185,6 +186,7 @@ export interface Database {
           status?: AppointmentStatus;
           reason?: string | null;
           notes?: string | null;
+          reminder_sent_at?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -199,6 +201,7 @@ export interface Database {
           status?: AppointmentStatus;
           reason?: string | null;
           notes?: string | null;
+          reminder_sent_at?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -212,6 +215,39 @@ export interface Database {
             referencedColumns: ["id"];
           },
         ];
+      };
+      staff_availability: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          staff_id: string;
+          day_of_week: number;
+          start_minutes: number | null;
+          end_minutes: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          staff_id: string;
+          day_of_week: number;
+          start_minutes?: number | null;
+          end_minutes?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          staff_id?: string;
+          day_of_week?: number;
+          start_minutes?: number | null;
+          end_minutes?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       clinical_records: {
         Row: {

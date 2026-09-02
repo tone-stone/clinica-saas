@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getTenantBySubdomain } from "@/lib/tenant/get-tenant";
 import { getOwnPatientRecord } from "@/lib/queries/portal";
 import { getClinicalStaff } from "@/lib/queries/staff";
-import { updateAppointmentStatus } from "@/lib/actions/appointments";
-import { RequestAppointmentForm } from "@/components/request-appointment-form";
+import { getBusySlots } from "@/lib/queries/appointments";
+import { getAvailabilityMap } from "@/lib/queries/availability";
+import { requestAppointment, updateAppointmentStatus } from "@/lib/actions/appointments";
+import { AppointmentScheduler } from "@/components/appointment-scheduler";
 import type { AppointmentStatus } from "@/lib/supabase/database.types";
 
 const STATUS_LABEL: Record<AppointmentStatus, string> = {
@@ -31,15 +33,18 @@ export default async function PortalAppointmentsPage({
     return <p className="text-muted-foreground">No se encontró tu ficha de paciente.</p>;
   }
 
+  const staffOptions = await getClinicalStaff(tenant.id);
+
   const supabase = await createClient();
-  const [{ data: appointments }, staffOptions] = await Promise.all([
+  const [{ data: appointments }, busySlots, availabilityByStaff] = await Promise.all([
     supabase
       .from("appointments")
       .select("*")
       .eq("tenant_id", tenant.id)
       .eq("patient_id", patient.id)
       .order("scheduled_at", { ascending: false }),
-    getClinicalStaff(tenant.id),
+    getBusySlots(tenant.id),
+    getAvailabilityMap(tenant.id, staffOptions.map((s) => s.userId)),
   ]);
 
   return (
@@ -73,7 +78,14 @@ export default async function PortalAppointmentsPage({
       <Separator className="my-8" />
       <h2 className="text-lg font-medium">Solicitar una cita</h2>
       <div className="mt-4">
-        <RequestAppointmentForm staffOptions={staffOptions} />
+        <AppointmentScheduler
+          staffOptions={staffOptions}
+          busySlots={busySlots}
+          availabilityByStaff={availabilityByStaff}
+          action={requestAppointment}
+          submitLabel="Solicitar cita"
+          pendingLabel="Enviando…"
+        />
       </div>
     </div>
   );

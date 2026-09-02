@@ -80,6 +80,94 @@ export async function createPatient(
   redirect(`/pacientes/${patient.id}`);
 }
 
+export async function updatePatient(
+  _prevState: PatientFormState,
+  formData: FormData
+): Promise<PatientFormState> {
+  const tenant = await getCurrentTenant();
+  if (!tenant) return { error: "No se pudo determinar la clínica" };
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Falta el paciente a editar" };
+
+  const parsed = patientSchema.safeParse({
+    fullName: formData.get("fullName"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+    dateOfBirth: formData.get("dateOfBirth"),
+    gender: formData.get("gender"),
+    address: formData.get("address"),
+    emergencyContactName: formData.get("emergencyContactName"),
+    emergencyContactPhone: formData.get("emergencyContactPhone"),
+    notes: formData.get("notes"),
+  });
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) fieldErrors[String(issue.path[0])] = issue.message;
+    return { error: "Revisa los datos del formulario", fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("patients")
+    .update({
+      full_name: parsed.data.fullName,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      date_of_birth: parsed.data.dateOfBirth || null,
+      gender: parsed.data.gender || null,
+      address: parsed.data.address || null,
+      emergency_contact_name: parsed.data.emergencyContactName || null,
+      emergency_contact_phone: parsed.data.emergencyContactPhone || null,
+      notes: parsed.data.notes || null,
+    })
+    .eq("id", id)
+    .eq("tenant_id", tenant.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/pacientes");
+  revalidatePath(`/pacientes/${id}`);
+  redirect(`/pacientes/${id}`);
+}
+
+export interface DeletePatientState {
+  error?: string;
+}
+
+/**
+ * Solo permite borrar pacientes sin historial clínico registrado: el
+ * expediente clínico es append-only por diseño (ver 0005_rls_policies),
+ * así que un paciente con entradas reales no debe poder eliminarse.
+ */
+export async function deletePatient(
+  _prevState: DeletePatientState,
+  formData: FormData
+): Promise<DeletePatientState> {
+  const tenant = await getCurrentTenant();
+  if (!tenant) return { error: "No se pudo determinar la clínica" };
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Falta el paciente a eliminar" };
+
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("clinical_records")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenant.id)
+    .eq("patient_id", id);
+
+  if (count && count > 0) {
+    return { error: "No se puede eliminar: este paciente tiene historial clínico registrado." };
+  }
+
+  const { error } = await supabase.from("patients").delete().eq("id", id).eq("tenant_id", tenant.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/pacientes");
+  redirect("/pacientes");
+}
+
 /** Invita al paciente a crear su cuenta del portal (correo de invitación de Supabase Auth). */
 export async function invitePatientToPortal(patientId: string): Promise<{ error?: string }> {
   const tenant = await getCurrentTenant();

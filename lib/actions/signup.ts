@@ -16,7 +16,10 @@ const signupSchema = z.object({
   ownerFullName: z.string().min(2, "Ingresa tu nombre"),
   ownerEmail: z.string().email("Correo inválido"),
   ownerPassword: z.string().min(8, "Mínimo 8 caracteres"),
-  planId: z.string().uuid("Selecciona un plan"),
+  planId: z.preprocess(
+    (value) => (value === null || value === "" ? undefined : value),
+    z.string().uuid("Selecciona un plan").optional()
+  ),
 });
 
 export interface SignupState {
@@ -57,9 +60,13 @@ export async function signupTenant(
     return { error: "Ese subdominio ya está en uso", fieldErrors: { subdomain: "Ya está en uso" } };
   }
 
-  const { data: plan } = await admin.from("plans").select("*").eq("id", planId).maybeSingle();
-  if (!plan) {
-    return { error: "El plan seleccionado no existe" };
+  let plan: { id: string; stripe_price_id: string } | null = null;
+  if (planId) {
+    const { data } = await admin.from("plans").select("*").eq("id", planId).maybeSingle();
+    if (!data) {
+      return { error: "El plan seleccionado no existe" };
+    }
+    plan = data;
   }
 
   const { data: createdUser, error: createUserError } = await admin.auth.admin.createUser({
@@ -78,8 +85,8 @@ export async function signupTenant(
     .insert({
       name: clinicName,
       subdomain,
-      plan_id: plan.id,
-      subscription_status: "incomplete",
+      plan_id: plan?.id ?? null,
+      subscription_status: plan ? "incomplete" : "active",
     })
     .select()
     .single();
@@ -97,6 +104,16 @@ export async function signupTenant(
     return { error: membershipError.message };
   }
 
+  const tenantOrigin = `${PROTOCOL}://${subdomain}.${ROOT_DOMAIN}`;
+
+  // Inicia sesión en el navegador (server action: sí puede escribir cookies).
+  const supabase = await createClient();
+  await supabase.auth.signInWithPassword({ email: ownerEmail, password: ownerPassword });
+
+  if (!plan) {
+    redirect(`${tenantOrigin}/dashboard`);
+  }
+
   const stripe = getStripe();
   const customer = await stripe.customers.create({
     email: ownerEmail,
@@ -105,7 +122,6 @@ export async function signupTenant(
   });
   await admin.from("tenants").update({ stripe_customer_id: customer.id }).eq("id", tenant.id);
 
-  const tenantOrigin = `${PROTOCOL}://${subdomain}.${ROOT_DOMAIN}`;
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customer.id,
@@ -115,10 +131,6 @@ export async function signupTenant(
     metadata: { tenant_id: tenant.id },
     subscription_data: { metadata: { tenant_id: tenant.id } },
   });
-
-  // Inicia sesión en el navegador (server action: sí puede escribir cookies).
-  const supabase = await createClient();
-  await supabase.auth.signInWithPassword({ email: ownerEmail, password: ownerPassword });
 
   redirect(checkoutSession.url ?? `${tenantOrigin}/dashboard`);
 }
