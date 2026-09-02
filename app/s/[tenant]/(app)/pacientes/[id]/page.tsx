@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  Activity,
+  CalendarClock,
+  FileSignature,
+  FileText,
+  Paperclip,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/server";
 import { getTenantBySubdomain } from "@/lib/tenant/get-tenant";
@@ -125,7 +133,7 @@ export default async function PatientDetailPage({
     .order("created_at", { ascending: false });
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           <PatientPhotoUpload
@@ -168,10 +176,13 @@ export default async function PatientDetailPage({
         </div>
       </div>
 
-      <section className="grid gap-8 lg:grid-cols-2">
-        <div>
-          <h2 className="text-lg font-medium">Citas</h2>
-          <div className="mt-4 space-y-3">
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card className="gap-4 p-5">
+          <h2 className="flex items-center gap-2 font-heading font-medium">
+            <CalendarClock className="size-4 text-muted-foreground" />
+            Citas
+          </h2>
+          <div className="space-y-3">
             {appointments?.map((appt) => (
               <div key={appt.id} className="rounded-lg border p-4">
                 <div className="flex items-center justify-between">
@@ -232,11 +243,14 @@ export default async function PatientDetailPage({
               allowDurationSelect
             />
           </div>
-        </div>
+        </Card>
 
-        <div>
-          <h2 className="text-lg font-medium">Historial clínico</h2>
-          <div className="mt-4 space-y-3">
+        <Card className="gap-4 p-5">
+          <h2 className="flex items-center gap-2 font-heading font-medium">
+            <FileText className="size-4 text-muted-foreground" />
+            Historial clínico
+          </h2>
+          <div className="space-y-3">
             {records?.map((record) => (
               <div key={record.id} className="rounded-lg border p-4">
                 <div className="flex items-center justify-between">
@@ -259,68 +273,81 @@ export default async function PatientDetailPage({
           <div className="mt-3">
             <ClinicalRecordForm patientId={id} />
           </div>
-        </div>
+        </Card>
       </section>
 
-      <section>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Escalas clínicas</h2>
-          <AssessmentForm patientId={id} />
-        </div>
-        <div className="mt-4">
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card className="gap-4 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 font-heading font-medium">
+              <Activity className="size-4 text-muted-foreground" />
+              Escalas clínicas
+            </h2>
+            <AssessmentForm patientId={id} />
+          </div>
           <AssessmentHistory assessments={assessments ?? []} />
-        </div>
-      </section>
+        </Card>
 
-      <section>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Consentimientos</h2>
-          <ConsentForm patientId={id} />
-        </div>
-        <div className="mt-4 space-y-2">
-          {consents?.map((consent) => (
-            <div key={consent.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-              <div>
-                <p className="font-medium">{consent.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {consent.signed_at
-                    ? `Firmado por ${consent.signed_name} el ${new Date(consent.signed_at).toLocaleDateString("es")}`
-                    : "Pendiente de firma"}
-                </p>
+        <Card className="gap-4 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 font-heading font-medium">
+              <FileSignature className="size-4 text-muted-foreground" />
+              Consentimientos
+            </h2>
+            <ConsentForm patientId={id} />
+          </div>
+          <div className="space-y-2">
+            {consents?.map((consent) => (
+              <div key={consent.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                <div>
+                  <p className="font-medium">{consent.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {consent.signed_at
+                      ? `Firmado por ${consent.signed_name} el ${new Date(consent.signed_at).toLocaleDateString("es")}`
+                      : "Pendiente de firma"}
+                  </p>
+                </div>
+                <Badge variant={consent.signed_at ? "secondary" : "outline"}>
+                  {consent.signed_at ? "Firmado" : "Pendiente"}
+                </Badge>
               </div>
-              <Badge variant={consent.signed_at ? "secondary" : "outline"}>
-                {consent.signed_at ? "Firmado" : "Pendiente"}
-              </Badge>
-            </div>
-          ))}
-          {(!consents || consents.length === 0) && (
-            <p className="text-sm text-muted-foreground">Sin consentimientos registrados.</p>
-          )}
-        </div>
+            ))}
+            {(!consents || consents.length === 0) && (
+              <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                Sin consentimientos registrados.
+              </p>
+            )}
+          </div>
+        </Card>
       </section>
 
-      <section>
-        <h2 className="text-lg font-medium">Documentos</h2>
-        <div className="mt-4 space-y-2">
+      <Card className="gap-4 p-5">
+        <h2 className="flex items-center gap-2 font-heading font-medium">
+          <Paperclip className="size-4 text-muted-foreground" />
+          Documentos
+        </h2>
+        <div className="space-y-2">
           {attachments?.map((attachment) => (
             <a
               key={attachment.id}
               href={getAuthenticatedAssetUrl(attachment.cloudinary_public_id, attachment.resource_type)}
               target="_blank"
               rel="noreferrer"
-              className="block rounded-lg border p-3 text-sm hover:bg-accent"
+              className="block rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50"
             >
               {attachment.original_filename ?? attachment.cloudinary_public_id}
             </a>
           ))}
           {(!attachments || attachments.length === 0) && (
-            <p className="text-sm text-muted-foreground">Sin documentos adjuntos.</p>
+            <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+              Sin documentos adjuntos.
+            </p>
           )}
         </div>
-        <div className="mt-4 max-w-md">
+        <div className="max-w-md">
           <AttachmentUploadForm patientId={id} />
         </div>
-      </section>
+      </Card>
     </div>
   );
 }
