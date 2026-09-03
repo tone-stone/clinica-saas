@@ -1,6 +1,6 @@
 import { getTenantBySubdomain } from "@/lib/tenant/get-tenant";
 import { LoginForm } from "@/components/login-form";
-import { Card } from "@/components/ui/card";
+import { AuthShell } from "@/components/auth-shell";
 
 export default async function TenantLoginPage({
   params,
@@ -9,18 +9,16 @@ export default async function TenantLoginPage({
 }) {
   const { tenant: subdomain } = await params;
   const tenant = await getTenantBySubdomain(subdomain);
+  const clinicName = tenant?.name ?? "tu clínica";
 
   return (
-    <main className="mx-auto flex flex-1 flex-col justify-center px-6 py-16" style={{ maxWidth: 400 }}>
-      <Card className="p-8">
-        <h1 className="text-center text-xl font-semibold tracking-tight">
-          {tenant?.name ?? "Iniciar sesión"}
-        </h1>
-        <p className="mt-1 text-center text-sm text-muted-foreground">Ingresa a tu cuenta</p>
-        <div className="mt-8">
-          <LoginForm />
-        </div>
-      </Card>
-    </main>
+    <AuthShell
+      title={`Ingresa a ${clinicName}`}
+      subtitle="Usa el correo y la contraseña de tu cuenta para acceder al panel de la clínica."
+      backHref="/blog"
+      backLabel="Volver al sitio"
+    >
+      <LoginForm />
+    </AuthShell>
   );
 }

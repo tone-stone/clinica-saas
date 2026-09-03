@@ -21,11 +21,24 @@ export function LoginForm({ redirectTo = "/dashboard" }: { redirectTo?: string }
       )}
       <div className="space-y-2">
         <Label htmlFor="email">Correo</Label>
-        <Input id="email" name="email" type="email" required />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          autoFocus
+          required
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Contraseña</Label>
-        <Input id="password" name="password" type="password" required />
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
       </div>
       <Button type="submit" className="w-full" disabled={isPending}>
         {isPending ? "Ingresando…" : "Ingresar"}

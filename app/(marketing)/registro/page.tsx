@@ -1,7 +1,5 @@
 import { SignupForm } from "@/components/signup-form";
-import { Card } from "@/components/ui/card";
-import { Logo } from "@/components/site-header";
-import { BackLink } from "@/components/back-link";
+import { AuthShell } from "@/components/auth-shell";
 import { BILLING_ENABLED } from "@/lib/billing/config";
 import { getActivePlans } from "@/lib/queries/plans";
 
@@ -13,23 +11,13 @@ export default async function SignupPage({
   const [plans, { plan }] = await Promise.all([getActivePlans(), searchParams]);
 
   return (
-    <main className="mx-auto flex-1 px-6 py-16" style={{ maxWidth: 480 }}>
-      <div className="mb-8">
-        <BackLink />
-      </div>
-      <div className="flex justify-center">
-        <Logo />
-      </div>
-      <Card className="mt-8 p-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Crea tu clínica</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          En un par de minutos tendrás tu propio espacio para gestionar citas, pacientes e
-          historiales clínicos.
-        </p>
-        <div className="mt-8">
-          <SignupForm plans={plans} defaultPlanId={plan} billingEnabled={BILLING_ENABLED} />
-        </div>
-      </Card>
-    </main>
+    <AuthShell
+      title="Crea tu clínica"
+      subtitle="En un par de minutos tendrás tu propio espacio para gestionar citas, pacientes e historiales clínicos."
+      backHref="/"
+      backLabel="Volver al inicio"
+    >
+      <SignupForm plans={plans} defaultPlanId={plan} billingEnabled={BILLING_ENABLED} />
+    </AuthShell>
   );
 }
