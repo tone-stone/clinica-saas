@@ -2,6 +2,7 @@ import { SignupForm } from "@/components/signup-form";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/site-header";
 import { BackLink } from "@/components/back-link";
+import { BILLING_ENABLED } from "@/lib/billing/config";
 import { getActivePlans } from "@/lib/queries/plans";
 
 export default async function SignupPage({
@@ -26,7 +27,7 @@ export default async function SignupPage({
           historiales clínicos.
         </p>
         <div className="mt-8">
-          <SignupForm plans={plans} defaultPlanId={plan} />
+          <SignupForm plans={plans} defaultPlanId={plan} billingEnabled={BILLING_ENABLED} />
         </div>
       </Card>
     </main>

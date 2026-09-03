@@ -25,7 +25,15 @@ const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
 
 const initialState: SignupState = {};
 
-export function SignupForm({ plans, defaultPlanId }: { plans: Plan[]; defaultPlanId?: string }) {
+export function SignupForm({
+  plans,
+  defaultPlanId,
+  billingEnabled = true,
+}: {
+  plans: Plan[];
+  defaultPlanId?: string;
+  billingEnabled?: boolean;
+}) {
   const [state, formAction, isPending] = useActionState(signupTenant, initialState);
   const [subdomain, setSubdomain] = useState("");
   const [planId, setPlanId] = useState(defaultPlanId ?? plans[0]?.id ?? "");
@@ -127,7 +135,11 @@ export function SignupForm({ plans, defaultPlanId }: { plans: Plan[]; defaultPla
       )}
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Creando tu clínica…" : "Continuar al pago"}
+        {isPending
+          ? "Creando tu clínica…"
+          : billingEnabled
+            ? "Continuar al pago"
+            : "Crear clínica"}
       </Button>
     </form>
   );

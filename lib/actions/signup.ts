@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe/client";
+import { BILLING_ENABLED } from "@/lib/billing/config";
 import { subdomainSchema } from "@/lib/validation/subdomain";
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
@@ -86,7 +87,7 @@ export async function signupTenant(
       name: clinicName,
       subdomain,
       plan_id: plan?.id ?? null,
-      subscription_status: plan ? "incomplete" : "active",
+      subscription_status: plan && BILLING_ENABLED ? "incomplete" : "active",
     })
     .select()
     .single();
@@ -110,7 +111,9 @@ export async function signupTenant(
   const supabase = await createClient();
   await supabase.auth.signInWithPassword({ email: ownerEmail, password: ownerPassword });
 
-  if (!plan) {
+  // Sin plan, o con la facturación desactivada (modo simulación): la clínica
+  // queda activa sin pasar por Stripe Checkout.
+  if (!plan || !BILLING_ENABLED) {
     redirect(`${tenantOrigin}/dashboard`);
   }
 
