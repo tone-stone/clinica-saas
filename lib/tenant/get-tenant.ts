@@ -1,6 +1,7 @@
 import { cache } from "react";
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { BILLING_ENABLED } from "@/lib/billing/config";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Tenant = Database["public"]["Tables"]["tenants"]["Row"];
@@ -26,5 +27,7 @@ export const getTenantBySubdomain = cache(async (subdomain: string): Promise<Ten
 
 /** past_due se tolera como margen de gracia; canceled/incomplete bloquean el acceso. */
 export function tenantHasAppAccess(tenant: Tenant): boolean {
+  // Con la facturación desactivada (modo simulación) ninguna clínica se bloquea.
+  if (!BILLING_ENABLED) return true;
   return ACTIVE_STATUSES.has(tenant.subscription_status);
 }
